@@ -1,1 +1,3 @@
 visionscaper-pybase
+tqdm
+numpy

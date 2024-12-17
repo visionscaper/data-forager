@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Optional, List, Tuple, Protocol
 import os
 
@@ -7,29 +8,37 @@ from tqdm import tqdm
 from forager.index_stores.common import IndexStoreInterface
 
 
-class ProcessSampleFunc(Protocol):
+@dataclass
+class SampleData:
 
-    def __call__(self, sample_text: str, text_file_path: str) -> Tuple[
-        bytes,
-        str
-    ]:
+    sample_bytes: bytes
+    file_path: str
+
+
+class CreateSamplesFunc(Protocol):
+
+    def __call__(self, text_line: bytes, text_file_path: str) -> List[SampleData]:
         """
-        Converts the sample_text in to sample data and appends it to a file. The name of the file is also returned.
+        Creates one or more samples from the given text_line and stores it in one or multiple different files.
+        The path to the file(s) in which the samples are stores are also returned.
 
-        :param sample_text: Sample text to be converted.
-        :param text_file_path: Source of text sample.
+        IMPORTANT: it is assumed that each sample returned is stored in a file sequentially in the same order.
+                   This must also hold over multiple function calls. This is important because the byte offset
+                   of a sample is derived from the order the samples are returned.
 
-        :return: Tuple:
-            sample data,
-            file path where the sample data is stored
+        :param text_line: Text line in bytes, the function needs to choose a text encoding itself
+        :param text_file_path: Source of text line.
+
+        :return: List of DataSample objects. For each created sample the following is given:
+            * Its representation in bytes, as used to store the sample
+            * The file path to where the sample is stored
+
         """
         ...
 
-def noop_sample_processing(sample_text: str, text_file_path: str) -> Tuple[
-    bytes,
-    str
-]:
-    return bytes(sample_text, 'utf-8'), text_file_path
+
+def noop_sample_processing(text_line: bytes, text_file_path: str) -> List[SampleData]:
+    return [SampleData(text_line, text_file_path)]
 
 
 class FileTextLinesIndexer(Base):
@@ -38,50 +47,71 @@ class FileTextLinesIndexer(Base):
         self,
         input_file_paths: List[str],
         index_store: IndexStoreInterface,
-        process_sample_func: Optional[ProcessSampleFunc] = None,
-        processing_description: Optional[str] = None,
+        create_samples_func: Optional[CreateSamplesFunc] = None,
+        description: Optional[str] = None,
         name: Optional[str] = None
     ):
         super().__init__(pybase_logger_name=name)
 
-        if process_sample_func is None:
-            process_sample_func = noop_sample_processing
+        if create_samples_func is None:
+            create_samples_func = noop_sample_processing
 
-        if processing_description is None:
-            processing_description = "Indexing"
-        else:
-            processing_description = f"{processing_description} + Indexing"
+        if description is None:
+            description = "Indexing"
 
         self._input_file_paths = input_file_paths
         self._index_store = index_store
 
-        self._process_sample_func = process_sample_func
-        self._processing_description = processing_description
+        self._create_samples_func = create_samples_func
+        self._description = description
 
     def __call__(self):
+        """
+        IMPORTANT: input files are always read in binary mode; applying a text encoding is up to the user.
+                   E.g. through process_sample_func and/or when processing the data Dataset::_process_sample()
+
+        :return:
+        """
         self._index_store.init_store()
 
-        byte_offset = 0
-        for input_file_path in self._input_file_paths:
-            self._log.info(f"{self._processing_description}: \n"
-                           f"{input_file_path}")
+        byte_offset_map = {}
+        def update_byte_offset(num_bytes: int, file_path: str):
+            offset = byte_offset_map.get(file_path, 0)
+            byte_offset_map[file_path] = offset + num_bytes
 
-            with open(input_file_path, "r") as f:
+        for input_file_path in self._input_file_paths:
+            self._log.info(
+                f"{self._description}: \n"
+                f"{input_file_path}"
+            )
+
+            with open(input_file_path, "rb") as f:
                 file_size = os.fstat(f.fileno()).st_size
-                pbar = tqdm(desc=self._processing_description, unit="bytes", total=file_size)
+                pbar = tqdm(desc=self._description, unit="bytes", total=file_size)
 
                 while text_line := f.readline():
 
-                    sample_data, sample_file_path = self._process_sample_func(
+                    num_text_line_bytes = len(text_line)
+
+                    sample_data_list = self._create_samples_func(
                         text_line,
                         input_file_path,
                     )
-                    num_bytes = len(sample_data)
-                    self._index_store.add_sample(
-                        file_location=sample_file_path,
-                        byte_offset=byte_offset,
-                        num_bytes=num_bytes
-                    )
 
-                    byte_offset += num_bytes
-                    pbar.update(num_bytes)
+                    for sample_data in sample_data_list:
+                        file_location = sample_data.file_path
+                        byte_offset = byte_offset_map.get(file_location, 0)
+                        num_bytes = len(sample_data.sample_bytes)
+
+                        self._index_store.add_sample(
+                            file_location=file_location,
+                            byte_offset=byte_offset,
+                            num_bytes=num_bytes
+                        )
+
+                        update_byte_offset(
+                            num_bytes,
+                            sample_data.file_path
+                        )
+
+                    pbar.update(num_text_line_bytes)

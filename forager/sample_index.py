@@ -12,6 +12,11 @@ class SampleLocation:
     byte_offset: int
     num_bytes: int
 
+    def __str__(self):
+        return (f"file_path  : {self.file_path}\n"
+                f"byte_offset: {self.byte_offset}\n"
+                f"num_bytes  : {self.num_bytes}")
+
 
 @dataclass
 class SampleIndex:

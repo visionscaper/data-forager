@@ -9,6 +9,8 @@ import gzip
 
 from basics.logging import get_logger
 
+from forager.utils import find_files_recursive
+
 module_logger = get_logger(os.path.basename(__file__))
 
 
@@ -73,11 +75,7 @@ def unzip_file(
 
 
 def find_zipped_files(input_path: str) -> List[str]:
-    zipped_file_paths = []
-    for ext_pattern in ['*.gz', '*.gzip', '*.GZ', '*.GZIP']:
-        zipped_file_paths += list(glob.glob(os.path.join(input_path, ext_pattern)))
-
-    return zipped_file_paths
+    return find_files_recursive(input_path, extension_patterns=['*.gz', '*.gzip', '*.GZ', '*.GZIP'])
 
 
 def unzip_files(input_files_path: str, output_path: Optional[str] = None) -> None:

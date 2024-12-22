@@ -75,9 +75,6 @@ class FileTextLinesIndexer(Base):
         self._index_store.init_store()
 
         byte_offset_map = {}
-        def update_byte_offset(num_bytes: int, file_path: str):
-            offset = byte_offset_map.get(file_path, 0)
-            byte_offset_map[file_path] = offset + num_bytes
 
         for input_file_path in self._input_file_paths:
             self._log.info(
@@ -109,9 +106,6 @@ class FileTextLinesIndexer(Base):
                             num_bytes=num_bytes
                         )
 
-                        update_byte_offset(
-                            num_bytes,
-                            sample_data.file_path
-                        )
+                        byte_offset_map[file_location] = byte_offset + num_bytes
 
                     pbar.update(num_text_line_bytes)

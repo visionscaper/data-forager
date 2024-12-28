@@ -1,6 +1,8 @@
-from dataclasses import dataclass
 from typing import Optional, List, Tuple, Protocol
+from dataclasses import dataclass
+
 import os
+import sys
 
 from basics.base import Base
 from tqdm import tqdm
@@ -77,14 +79,15 @@ class FileTextLinesIndexer(Base):
         byte_offset_map = {}
 
         for input_file_path in self._input_file_paths:
-            self._log.info(
+            sys.stdout.write(
                 f"{self._description}: \n"
-                f"{input_file_path}"
+                f"{input_file_path}\n"
             )
+            sys.stdout.flush()
 
             with open(input_file_path, "rb") as f:
                 file_size = os.fstat(f.fileno()).st_size
-                pbar = tqdm(desc=self._description, unit="bytes", total=file_size)
+                pbar = tqdm(unit="bytes", total=file_size, file=sys.stdout)
 
                 while text_line := f.readline():
 
@@ -109,3 +112,9 @@ class FileTextLinesIndexer(Base):
                         byte_offset_map[file_location] = byte_offset + num_bytes
 
                     pbar.update(num_text_line_bytes)
+                    sys.stdout.flush()
+
+                pbar.close()
+
+            sys.stdout.write('\n\n')
+            sys.stdout.flush()

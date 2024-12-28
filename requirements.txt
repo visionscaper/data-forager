@@ -1,3 +1,4 @@
 visionscaper-pybase
 tqdm
 numpy
+natsort

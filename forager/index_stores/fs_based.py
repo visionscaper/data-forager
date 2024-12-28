@@ -39,7 +39,7 @@ class IndexStore(Base):
         if file_location not in self._file_locations:
             self._file_locations.append(file_location)
             with open(os.path.join(self._index_data_path, "file_location.txt"), "a") as f:
-                f.writelines([file_location])
+                f.writelines([file_location+'\n'])
 
         file_index = self._file_locations.index(file_location)
 
@@ -50,7 +50,7 @@ class IndexStore(Base):
 
     def load(self) -> SampleIndex:
         with open(os.path.join(self._index_data_path, "file_location.txt"), "r") as f:
-            file_locations = f.readlines()
+            file_locations = [loc[:-1] if loc[-1]=='\n' else loc for loc in f.readlines()]
 
         with open(os.path.join(self._index_data_path, "sample_locations.bin"), "rb") as f:
             data = f.read()

@@ -1,8 +1,9 @@
-from typing import List, Optional
+import os
+from typing import Optional
 
 from forager.index_stores.fs_based import IndexStore as FSBasedIndexStore
 from forager.indexers.text_lines import FileTextLinesIndexer
-from forager.utils import find_files_recursive
+from forager.utils import find_files_recursive, natural_sort
 
 
 def create_default_jsonl_indexer(
@@ -30,10 +31,12 @@ def create_default_jsonl_indexer(
         input_base_path,
         extension_patterns=['*.jsonl', '*.JSONL']
     )
+
+    # Assuming numbered files
+    input_file_paths = natural_sort(input_file_paths)
+
     return FileTextLinesIndexer(
         input_file_paths=input_file_paths,
         index_store=index_store,
         name=name,
     )
-
-

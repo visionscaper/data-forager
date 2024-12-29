@@ -58,6 +58,10 @@ class TestJSONLIndexing(unittest.TestCase):
         for idx in tqdm(random_indices, total=len(random_indices), desc="Test samples"):
             self.assertEqual(dataset_from_index[idx], direct_data[idx])
 
+        # Just to test read speed
+        for idx in tqdm(random_indices, total=len(random_indices), desc="Read samples"):
+            sample = dataset_from_index[idx]
+
 
 if __name__ == '__main__':
     unittest.main()

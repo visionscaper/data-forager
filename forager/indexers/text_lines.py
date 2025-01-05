@@ -16,10 +16,19 @@ class SampleData:
     sample_bytes: bytes
     file_path: str
 
+class SampleGeneratorInterface(Protocol):
 
-class CreateSamplesFunc(Protocol):
+    def prepare(self, text_file_path: str):
+        """
+        Prepare sample generation from a new input text file
 
-    def __call__(self, text_line: bytes, text_file_path: str) -> List[SampleData]:
+        :param text_file_path: path to text file
+
+        :return:
+        """
+        ...
+
+    def create_samples(self, text_line: bytes) -> List[SampleData]:
         """
         Creates one or more samples from the given text_line and stores it in one or multiple different files.
         The path to the file(s) in which the samples are stores are also returned.
@@ -28,8 +37,8 @@ class CreateSamplesFunc(Protocol):
                    This must also hold over multiple function calls. This is important because the byte offset
                    of a sample is derived from the order the samples are returned.
 
-        :param text_line: Text line in bytes, the function needs to choose a text encoding itself
-        :param text_file_path: Source of text line.
+        :param text_line: Text line in bytes from text_file_path, provided in the prepare phase.
+                          The function needs to choose a text encoding itself
 
         :return: List of DataSample objects. For each created sample the following is given:
             * Its representation in bytes, as used to store the sample
@@ -38,8 +47,34 @@ class CreateSamplesFunc(Protocol):
         """
         ...
 
+    def finish(self, is_last_file: bool):
+        """
+        Finish generation of samples from text lines of input file at the `text_file_path` given in the prepare() phase.
+
+        is_last_file: indicates if the input text file was the last file to be processed
+
+        :return:
+        """
+        ...
+
+
+class NOOPSampleGenerator:
+
+    def __init__(self):
+        self._current_text_file = None
+
+    def prepare(self, text_file_path: str):
+        self._current_text_file = text_file_path
+
+    def create_samples(self, text_line: bytes) -> List[SampleData]:
+        return [SampleData(text_line, self._current_text_file)]
+
+    def finish(self):
+        self._current_text_file = None
+
 
 def noop_sample_processing(text_line: bytes, text_file_path: str) -> List[SampleData]:
+
     return [SampleData(text_line, text_file_path)]
 
 
@@ -49,14 +84,14 @@ class FileTextLinesIndexer(Base):
         self,
         input_file_paths: List[str],
         index_store: IndexStoreInterface,
-        create_samples_func: Optional[CreateSamplesFunc] = None,
+        sample_generator: Optional[SampleGeneratorInterface] = None,
         description: Optional[str] = None,
         name: Optional[str] = None
     ):
         super().__init__(pybase_logger_name=name)
 
-        if create_samples_func is None:
-            create_samples_func = noop_sample_processing
+        if sample_generator is None:
+            sample_generator = NOOPSampleGenerator()
 
         if description is None:
             description = "Indexing"
@@ -64,7 +99,7 @@ class FileTextLinesIndexer(Base):
         self._input_file_paths = input_file_paths
         self._index_store = index_store
 
-        self._create_samples_func = create_samples_func
+        self._sample_generator = sample_generator
         self._description = description
 
     def __call__(self):
@@ -85,6 +120,8 @@ class FileTextLinesIndexer(Base):
             )
             sys.stdout.flush()
 
+            self._sample_generator.prepare(input_file_path)
+
             with open(input_file_path, "rb") as f:
                 file_size = os.fstat(f.fileno()).st_size
                 pbar = tqdm(unit="bytes", total=file_size, file=sys.stdout)
@@ -93,10 +130,7 @@ class FileTextLinesIndexer(Base):
 
                     num_text_line_bytes = len(text_line)
 
-                    sample_data_list = self._create_samples_func(
-                        text_line,
-                        input_file_path,
-                    )
+                    sample_data_list = self._sample_generator.create_samples(text_line)
 
                     for sample_data in sample_data_list:
                         file_location = sample_data.file_path
@@ -115,6 +149,9 @@ class FileTextLinesIndexer(Base):
                     sys.stdout.flush()
 
                 pbar.close()
+
+            is_last_file = input_file_path == self._input_file_paths[-1]
+            self._sample_generator.finish(is_last_file=is_last_file)
 
             sys.stdout.write('\n\n')
             sys.stdout.flush()

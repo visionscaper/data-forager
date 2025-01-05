@@ -104,12 +104,15 @@ class TokenizedSampleGenerator(Base):
         tokenizer_func: TokenizerFunc,
         eos_idx: int,
         token_dtype: np.dtype = np.uint16,
-        sample_size: int = 1024,
+        sample_size: Optional[int] = None,
         base_output_path: str = None,
         file_name_postfix: str = "tokenized-samples",
         name: Optional[str] = None
     ):
         """
+        Tokenizes and indexed text into fixed length (`sample_size` not None) samples or
+        samples variable of variable size, depending on the text (`sample_size` is not None).
+
         This callable performs the following steps:
         ## prepare ##
          * In the preparation step, create file to store tokenized samples, based on the input `text_file_path` and
@@ -119,18 +122,26 @@ class TokenizedSampleGenerator(Base):
          * To create tokenized text samples, processes incoming text line using `process_text_line_func`,
            e.g. convert JSONL in to dict and retrieve the sample text from it.
          * The resulting text is tokenized using `tokenizer_func`.
-         * The tokenized text is split into samples of length `sample_size` and stored in the
+         * If a `sample_size` is given:
+           The tokenized text is split into samples of length `sample_size` and stored in the
            file opened in the prepare step. Here `token_dtype` is used.
-         * Trailing tokens will be combined with samples of a next text line
-         * Tokens from different text samples will be separated by `eos_idx`
+            - Trailing tokens will be combined with samples of a next text line
+            - Tokens from different text samples will be separated by `eos_idx`
+         * If a `sample_size` is not given:
+           The tokenized text is immediately stored as is, in the file opened in the prepare step.
+           Here `token_dtype` is used.
         ## finish ##
          * After all text lines are processed, the file holding the tokenized text samples is closed.
-           Any final trailing tokens will be discarded, but only when the last input text file was processed.
+           When `sample_size` not None: Any final trailing tokens will be discarded, but only when the last
+           input text file was processed.
 
         :param tokenizer_func:
         :param name:
         """
         super().__init__(pybase_logger_name=name)
+
+        if sample_size is None:
+            self._log.info(f"Tokenized text will NOT be broken in to samples of fixed length.")
 
         self._process_text_line_func = process_text_line_func
         self._tokenizer_func = tokenizer_func
@@ -147,7 +158,10 @@ class TokenizedSampleGenerator(Base):
 
     def prepare(self, text_file_path: str):
         """
-        Prepare sample generation from a new input text file
+        ## prepare ##
+         * In the preparation step, create file to store tokenized samples, based on the input `text_file_path` and
+           the given `base_output_path` and `file_name_postfix`
+         * If the `base_output_path` is not given the `text_file_path` will be used + "/tokenized-samples"
 
         :param text_file_path: path to text file
 
@@ -180,10 +194,14 @@ class TokenizedSampleGenerator(Base):
          * To create tokenized text samples, processes incoming text line using `process_text_line_func`,
            e.g. convert JSONL in to dict and retrieve the sample text from it.
          * The resulting text is tokenized using `tokenizer_func`.
-         * The tokenized text is split into samples of length `sample_size` and stored in the
-           file opened in the prepare step.
-         * Trailing tokens will be combined with samples of a next text line
-         * Tokens from different text samples will be separated by `eos_idx`
+         * If a `sample_size` is given:
+           The tokenized text is split into samples of length `sample_size` and stored in the
+           file opened in the prepare step. Here `token_dtype` is used.
+            - Trailing tokens will be combined with samples of a next text line
+            - Tokens from different text samples will be separated by `eos_idx`
+         * If a `sample_size` is not given:
+           The tokenized text is immediately stored as is, in the file opened in the prepare step.
+           Here `token_dtype` is used.
 
         :param text_line: JSONL text line
 
@@ -196,24 +214,27 @@ class TokenizedSampleGenerator(Base):
         input_text = self._process_text_line_func(text_line)
         tokenized_text = self._tokenizer_func(input_text)
 
-        if self._rest_tokens is not None:
-            tokenized_text = self._rest_tokens + tokenized_text
-            self._rest_tokens = None
+        if self._sample_size is not None:
+            if self._rest_tokens is not None:
+                tokenized_text = self._rest_tokens + tokenized_text
+                self._rest_tokens = None
 
-        num_tokens = len(tokenized_text)
-        num_samples = num_tokens // self._sample_size
-        num_rest_tokens = num_tokens % self._sample_size
+            num_tokens = len(tokenized_text)
+            num_samples = num_tokens // self._sample_size
+            num_rest_tokens = num_tokens % self._sample_size
 
-        if num_rest_tokens > 0:
-            self._rest_tokens = tokenized_text[-num_rest_tokens:] + [self._eos_idx]
-            tokenized_text = tokenized_text[:num_samples*self._sample_size]
+            if num_rest_tokens > 0:
+                self._rest_tokens = tokenized_text[-num_rest_tokens:] + [self._eos_idx]
+                tokenized_text = tokenized_text[:num_samples*self._sample_size]
 
-        tokenized_samples = np.array(tokenized_text, dtype=self._token_dtype)
-        tokenized_samples = tokenized_samples.reshape(-1, self._sample_size)
+            tokenized_samples = np.array(tokenized_text, dtype=self._token_dtype)
+            tokenized_samples = tokenized_samples.reshape(-1, self._sample_size)
+        else:
+            tokenized_samples = np.array([tokenized_text], dtype=self._token_dtype)
 
         # Store tokenized_samples
         sample_data = []
-        for sample_idx in range(num_samples):
+        for sample_idx in range(tokenized_samples.shape[0]):
             sample_bytes = tokenized_samples[sample_idx, :].tobytes()
             sample_data.append(SampleData(
                 sample_bytes, self._current_samples_path,
@@ -224,6 +245,15 @@ class TokenizedSampleGenerator(Base):
         return sample_data
 
     def finish(self, is_last_file: bool):
+        """
+        ## finish ##
+         * After all text lines are processed, the file holding the tokenized text samples is closed.
+           When `sample_size` not None: Any final trailing tokens will be discarded, but only when the last
+           input text file was processed.
+
+        :param is_last_file:
+        :return:
+        """
         self._close_current_samples_file()
 
         if is_last_file and self._rest_tokens is not None:

@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "forager"
+version = "0.1.0"
+description = "Enabling random access to large datasets on disk for PyTorch training and other use cases"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [
+    { name = "Freddy Snijder", email = "forager@visionscapers.com" }
+]
+keywords = [
+    "machine-learning",
+    "deep-learning",
+    "pytorch",
+    "dataset",
+    "dataloader",
+    "random-access",
+    "large-scale",
+    "training",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy",
+    "tqdm",
+    "natsort",
+    "visionscaper-pybase",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "tiktoken",
+    "build",
+    "twine",
+]
+
+[project.urls]
+Homepage = "https://github.com/visionscaper/forager"
+Repository = "https://github.com/visionscaper/forager"
+Issues = "https://github.com/visionscaper/forager/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["forager*"]

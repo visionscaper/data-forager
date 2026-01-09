@@ -1,8 +1,8 @@
-# Forager
+# Data Forager
 
 Enabling random access to large datasets on disk for PyTorch training and other use cases.
 
-## Why Forager?
+## Why Data Forager?
 
 When training on large datasets (billions of tokens), you face a dilemma:
 
@@ -18,7 +18,7 @@ When training on large datasets (billions of tokens), you face a dilemma:
 
 **Why shuffling matters:** True random shuffling reduces gradient variance, prevents learning dataset ordering artifacts, and is especially important when mixing multiple data sources.
 
-**Forager's solution:** Build a compact byte-offset index that enables O(1) random access to any sample via `seek()`. Your training code stays simple — large datasets work exactly like small ones:
+**Data Forager's solution:** Build a compact byte-offset index that enables O(1) random access to any sample via `seek()`. Your training code stays simple — large datasets work exactly like small ones:
 
 ```python
 # Same code for 1K samples or 1B samples
@@ -92,7 +92,7 @@ for batch in loader:
 
 ## How It Works
 
-Forager uses a two-phase approach:
+Data Forager uses a two-phase approach:
 
 ### Phase 1: Indexing (One-Time)
 

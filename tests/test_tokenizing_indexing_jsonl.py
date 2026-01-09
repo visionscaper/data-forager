@@ -13,12 +13,12 @@ import numpy as np
 
 import tiktoken
 
-from forager.datasets.tokens import TokensDataset
-from forager.indexers.tokenization_indexer import (
+from data_forager.datasets.tokens import TokensDataset
+from data_forager.indexers.tokenization_indexer import (
     create_tokenize_and_index_jsonl_text_func,
     TokenizerFunc
 )
-from forager.utils import find_files_recursive, natural_sort
+from data_forager.utils import find_files_recursive, natural_sort
 
 
 def load_jsonl_data(base_path: str) -> List[Dict]:

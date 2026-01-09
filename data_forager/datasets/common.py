@@ -3,8 +3,8 @@ from typing import Optional, Union, Dict, List, Protocol, Any
 
 from basics.base import Base
 
-from forager.sample_index import SampleIndex, SampleLocation
-from forager.index_stores.fs_based import IndexStore as FSBasedIndexStore
+from data_forager.sample_index import SampleIndex, SampleLocation
+from data_forager.index_stores.fs_based import IndexStore as FSBasedIndexStore
 
 
 class Dataset(Base, metaclass=abc.ABCMeta):

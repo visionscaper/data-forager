@@ -1,9 +1,9 @@
 import os
 from typing import Optional
 
-from forager.index_stores.fs_based import IndexStore as FSBasedIndexStore
-from forager.indexers.text_lines import FileTextLinesIndexer
-from forager.utils import find_files_recursive, natural_sort
+from data_forager.index_stores.fs_based import IndexStore as FSBasedIndexStore
+from data_forager.indexers.text_lines import FileTextLinesIndexer
+from data_forager.utils import find_files_recursive, natural_sort
 
 
 def create_default_jsonl_indexer(

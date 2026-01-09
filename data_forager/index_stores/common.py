@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from forager.sample_index import SampleIndex
+from data_forager.sample_index import SampleIndex
 
 
 class IndexStoreInterface(Protocol):

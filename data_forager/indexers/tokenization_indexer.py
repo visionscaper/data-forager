@@ -9,9 +9,9 @@ import numpy as np
 
 from basics.base import Base
 
-from forager.index_stores.fs_based import IndexStore as FSBasedIndexStore
-from forager.indexers.text_lines import SampleData, FileTextLinesIndexer
-from forager.utils import find_files_recursive, natural_sort
+from data_forager.index_stores.fs_based import IndexStore as FSBasedIndexStore
+from data_forager.indexers.text_lines import SampleData, FileTextLinesIndexer
+from data_forager.utils import find_files_recursive, natural_sort
 
 TokenizerFunc = Callable[[str], List[int]]
 ProcessTextLineFunc = Callable[[bytes], str]

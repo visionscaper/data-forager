@@ -9,7 +9,7 @@ import gzip
 
 from basics.logging import get_logger
 
-from forager.utils import find_files_recursive
+from data_forager.utils import find_files_recursive
 
 module_logger = get_logger(os.path.basename(__file__))
 

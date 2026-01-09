@@ -1,7 +1,7 @@
 import os
 import shutil
 
-from forager.indexers.jsonl_indexer import create_default_jsonl_indexer
+from data_forager.indexers.jsonl_indexer import create_default_jsonl_indexer
 
 if __name__ == "__main__":
     input_base_path = "../data/neural-ram/long-fineweb-docs/sample-100BT/test/unzipped"

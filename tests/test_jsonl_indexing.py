@@ -8,9 +8,9 @@ import random
 
 from tqdm import tqdm
 
-from forager.datasets.jsonl import JsonlDataset
-from forager.indexers.jsonl_indexer import create_default_jsonl_indexer
-from forager.utils import find_files_recursive, natural_sort
+from data_forager.datasets.jsonl import JsonlDataset
+from data_forager.indexers.jsonl_indexer import create_default_jsonl_indexer
+from data_forager.utils import find_files_recursive, natural_sort
 
 
 def load_jsonl_data(base_path: str) -> List[Dict]:

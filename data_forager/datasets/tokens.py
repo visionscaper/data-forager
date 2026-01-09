@@ -2,8 +2,8 @@ from typing import Optional
 
 import numpy as np
 
-from forager.sample_index import SampleIndex
-from forager.datasets.common import Dataset
+from data_forager.sample_index import SampleIndex
+from data_forager.datasets.common import Dataset
 
 
 class TokensDataset(Dataset):

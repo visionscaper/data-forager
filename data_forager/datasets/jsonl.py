@@ -1,8 +1,8 @@
 import json
 from typing import Optional, Dict
 
-from forager.datasets.common import Dataset
-from forager.sample_index import SampleIndex
+from data_forager.datasets.common import Dataset
+from data_forager.sample_index import SampleIndex
 
 
 class JsonlDataset(Dataset):

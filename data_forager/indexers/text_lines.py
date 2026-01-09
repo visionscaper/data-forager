@@ -7,7 +7,7 @@ import sys
 from basics.base import Base
 from tqdm import tqdm
 
-from forager.index_stores.common import IndexStoreInterface
+from data_forager.index_stores.common import IndexStoreInterface
 
 
 @dataclass

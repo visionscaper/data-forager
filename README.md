@@ -36,8 +36,8 @@ No special iteration logic, no buffer management, no epoch hacks.
 ### Use Case 1: Random Access to JSONL Files
 
 ```python
-from forager.indexers.jsonl_indexer import create_default_jsonl_indexer
-from forager.datasets.jsonl import JsonlDataset
+from data_forager.indexers.jsonl_indexer import create_default_jsonl_indexer
+from data_forager.datasets.jsonl import JsonlDataset
 from torch.utils.data import DataLoader
 
 # One-time indexing (run once, reuse forever)
@@ -58,8 +58,8 @@ for batch in loader:
 ### Use Case 2: Tokenized Samples for Language Model Training
 
 ```python
-from forager.indexers.tokenization_indexer import create_tokenize_and_index_jsonl_text_func
-from forager.datasets.tokens import TokensDataset
+from data_forager.indexers.tokenization_indexer import create_tokenize_and_index_jsonl_text_func
+from data_forager.datasets.tokens import TokensDataset
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 import numpy as np
@@ -136,7 +136,7 @@ This is O(1) regardless of dataset size — no scanning, no loading everything i
 - `sample_locations.bin` — Binary array of (file_index, byte_offset, num_bytes) tuples
 
 ```python
-from forager.index_stores.fs_based import IndexStore
+from data_forager.index_stores.fs_based import IndexStore
 
 # Used internally by indexers; rarely needed directly
 store = IndexStore(base_path='./data', index_data_folder='index')
@@ -152,16 +152,18 @@ All datasets implement `__len__` and `__getitem__`, making them compatible with 
 - Random access via `dataset[idx]` or `dataset[start:stop:step]`
 
 **`JsonlDataset`** — Returns parsed JSON dicts:
+
 ```python
-from forager.datasets.jsonl import JsonlDataset
+from data_forager.datasets.jsonl import JsonlDataset
 
 dataset = JsonlDataset.create_from_index_on_filesystem('./data')
 sample = dataset[0]  # Returns: {'text': '...', 'source': '...', ...}
 ```
 
 **`TokensDataset`** — Returns numpy arrays of token IDs:
+
 ```python
-from forager.datasets.tokens import TokensDataset
+from data_forager.datasets.tokens import TokensDataset
 import numpy as np
 
 dataset = TokensDataset.create_from_index_on_filesystem(
@@ -176,8 +178,9 @@ sample = dataset[0]  # Returns: np.array([1534, 892, 2041, ...], dtype=uint16)
 **`FileTextLinesIndexer`** — Base indexer for line-based text files. Scans files and records byte offsets for each line.
 
 **`create_default_jsonl_indexer(input_base_path)`** — Creates an indexer for JSONL files:
+
 ```python
-from forager.indexers.jsonl_indexer import create_default_jsonl_indexer
+from data_forager.indexers.jsonl_indexer import create_default_jsonl_indexer
 
 indexer = create_default_jsonl_indexer('./data')
 indexer()  # Indexes all .jsonl files recursively
@@ -191,14 +194,14 @@ indexer()  # Indexes all .jsonl files recursively
 5. Stores as binary files and builds index
 
 ```python
-from forager.indexers.tokenization_indexer import create_tokenize_and_index_jsonl_text_func
+from data_forager.indexers.tokenization_indexer import create_tokenize_and_index_jsonl_text_func
 
 indexer = create_tokenize_and_index_jsonl_text_func(
     input_base_path='./corpus',
-    tokenizer_func=tokenizer.encode,      # Your tokenizer
-    eos_idx=tokenizer.eos_token_id,       # EOS token ID
-    sample_size=1024,                      # Fixed context length (None for variable)
-    token_dtype=np.uint16,                 # Token storage dtype
+    tokenizer_func=tokenizer.encode,  # Your tokenizer
+    eos_idx=tokenizer.eos_token_id,  # EOS token ID
+    sample_size=1024,  # Fixed context length (None for variable)
+    token_dtype=np.uint16,  # Token storage dtype
 )
 indexer()
 ```
@@ -206,13 +209,13 @@ indexer()
 ## Installation
 
 ```bash
-pip install forager
+pip install data-forager
 ```
 
 Or install from source:
 ```bash
-git clone https://github.com/nuhame/forager.git
-cd forager
+git clone https://github.com/visionscaper/data-forager.git
+cd data-forager
 pip install -e .
 ```
 

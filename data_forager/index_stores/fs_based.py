@@ -5,7 +5,7 @@ import numpy as np
 
 from basics.base import Base
 
-from forager.sample_index import SampleIndex
+from data_forager.sample_index import SampleIndex
 
 
 class IndexStore(Base):

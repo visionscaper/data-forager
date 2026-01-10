@@ -1,14 +1,16 @@
 import os.path
+import shutil
 from typing import Optional
 
 import numpy as np
 
 from basics.base import Base
 
+from data_forager.index_stores.common import IndexStoreInterface
 from data_forager.sample_index import SampleIndex
 
 
-class IndexStore(Base):
+class IndexStore(IndexStoreInterface, Base):
 
     def __init__(self, base_path: str, index_data_folder: str = "index", name: Optional[str] = None):
         """
@@ -58,3 +60,15 @@ class IndexStore(Base):
             sample_locations = sample_locations.reshape((-1, 3))
 
         return SampleIndex(file_locations, sample_locations)
+
+    def exists(self) -> bool:
+        """Check if the index already exists."""
+        sample_locations = os.path.join(self._index_data_path, "sample_locations.bin")
+        file_location = os.path.join(self._index_data_path, "file_location.txt")
+        return os.path.exists(sample_locations) and os.path.exists(file_location)
+
+    def clear(self) -> None:
+        """Remove the index directory and all its contents."""
+        if os.path.exists(self._index_data_path):
+            shutil.rmtree(self._index_data_path)
+            self._file_locations = []

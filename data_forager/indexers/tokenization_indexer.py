@@ -10,7 +10,7 @@ import numpy as np
 from basics.base import Base
 
 from data_forager.index_stores.fs_based import IndexStore as FSBasedIndexStore
-from data_forager.indexers.text_lines import SampleData, FileTextLinesIndexer
+from data_forager.indexers.text_lines import SampleData, FileTextLinesIndexer, SampleGeneratorInterface
 from data_forager.utils import find_files_recursive, natural_sort
 
 TokenizerFunc = Callable[[str], List[int]]
@@ -96,7 +96,7 @@ def create_tokenize_and_index_jsonl_text_func(
     )
 
 
-class TokenizedSampleGenerator(Base):
+class TokenizedSampleGenerator(SampleGeneratorInterface, Base):
 
     def __init__(
         self,

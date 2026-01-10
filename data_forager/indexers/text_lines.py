@@ -58,7 +58,7 @@ class SampleGeneratorInterface(Protocol):
         ...
 
 
-class NOOPSampleGenerator:
+class NOOPSampleGenerator(SampleGeneratorInterface):
 
     def __init__(self):
         self._current_text_file = None
@@ -69,7 +69,7 @@ class NOOPSampleGenerator:
     def create_samples(self, text_line: bytes) -> List[SampleData]:
         return [SampleData(text_line, self._current_text_file)]
 
-    def finish(self):
+    def finish(self, is_last_file: bool):
         self._current_text_file = None
 
 

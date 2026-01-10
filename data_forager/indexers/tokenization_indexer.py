@@ -96,7 +96,7 @@ def create_tokenize_and_index_jsonl_text_func(
     )
 
 
-class TokenizedSampleGenerator(SampleGeneratorInterface, Base):
+class TokenizedSampleGenerator(Base, SampleGeneratorInterface):
 
     def __init__(
         self,
@@ -215,6 +215,10 @@ class TokenizedSampleGenerator(SampleGeneratorInterface, Base):
         tokenized_text = self._tokenizer_func(input_text)
 
         if self._sample_size is not None:
+            # Always append EOS after each document to mark document boundary
+            tokenized_text = tokenized_text + [self._eos_idx]
+
+            # Prepend any leftover tokens from previous document
             if self._rest_tokens is not None:
                 tokenized_text = self._rest_tokens + tokenized_text
                 self._rest_tokens = None
@@ -224,8 +228,9 @@ class TokenizedSampleGenerator(SampleGeneratorInterface, Base):
             num_rest_tokens = num_tokens % self._sample_size
 
             if num_rest_tokens > 0:
-                self._rest_tokens = tokenized_text[-num_rest_tokens:] + [self._eos_idx]
-                tokenized_text = tokenized_text[:num_samples*self._sample_size]
+                # Store remainder tokens (includes EOS from this document)
+                self._rest_tokens = tokenized_text[-num_rest_tokens:]
+                tokenized_text = tokenized_text[:num_samples * self._sample_size]
 
             tokenized_samples = np.array(tokenized_text, dtype=self._token_dtype)
             tokenized_samples = tokenized_samples.reshape(-1, self._sample_size)

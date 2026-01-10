@@ -155,3 +155,5 @@ class FileTextLinesIndexer(Base):
 
             sys.stdout.write('\n\n')
             sys.stdout.flush()
+
+        self._index_store.close()

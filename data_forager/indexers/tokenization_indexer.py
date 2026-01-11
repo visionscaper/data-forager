@@ -1,5 +1,6 @@
 from typing import Callable, List, Optional
 
+import logging
 import os
 from pathlib import Path
 
@@ -8,7 +9,11 @@ import json
 import numpy as np
 
 from basics.base import Base
+from basics.logging import get_logger
 
+module_logger = get_logger(os.path.basename(__file__))
+
+from data_forager.index_stores.common import IndexStoreInterface
 from data_forager.index_stores.fs_based import IndexStore as FSBasedIndexStore
 from data_forager.indexers.text_lines import SampleData, FileTextLinesIndexer, SampleGeneratorInterface
 from data_forager.utils import find_files_recursive, natural_sort
@@ -24,61 +29,125 @@ def get_text_from_jsonl(jsonl_bytes: bytes, text_key: str = "text", text_encodin
 
 
 def create_tokenize_and_index_jsonl_text_func(
-    input_base_path: str,
     tokenizer_func: TokenizerFunc,
     eos_idx: int,
+    input_base_path: Optional[str] = None,
+    input_file_paths: Optional[List[str]] = None,
+    output_base_path: Optional[str] = None,
+    index_store: Optional[IndexStoreInterface] = None,
     process_text_line_func: Optional[ProcessTextLineFunc] = None,
+    logger: Optional[logging.Logger] = None,
     name: Optional[str] = None,
     **sample_generator_kwargs,
 ) -> FileTextLinesIndexer:
     """
-    Create function to:
-     * Tokenize text from input JSONL objects, loaded from files at input_base_path (recursively),
-     * Store the token data in bin files under folder "tokenized-samples" in input_base_path
-     * Store index data under folder "index" in input_base_path
+    Create a pipeline to tokenize text from JSONL files and create an index for random access.
+
+    The pipeline:
+     * Tokenizes text from input JSONL objects
+     * Stores the token data in bin files under "tokenized-samples" folder
+     * Stores index data under "index" folder
 
     Usage:
-    # Create pipeline to tokenize text from input JSONL objects and index the token samples
+    ```python
     import tiktoken
 
     enc = tiktoken.get_encoding("gpt2")
     def tokenize_text(text: str) -> List[int]:
-        return tiktoken.enc.encode_ordinary(text)
+        return enc.encode_ordinary(text)
 
-    tokenize_and_index_jsonl_text_func = create_jsonl_text_tokenization_and_indexing_pipeline(
-        input_base_path='.',
+    # Option 1: Scan directory for JSONL files, output to same directory
+    indexer = create_tokenize_and_index_jsonl_text_func(
         tokenizer_func=tokenize_text,
-        sample_size=1024
+        eos_idx=enc.eot_token,
+        input_base_path='./data',
+        sample_size=1024,
     )
 
-    # Start tokenization and indexing
-    tokenize_and_index_jsonl_text_func()
+    # Option 2: Explicit input files and output path
+    indexer = create_tokenize_and_index_jsonl_text_func(
+        tokenizer_func=tokenize_text,
+        eos_idx=enc.eot_token,
+        input_file_paths=['./data/train.jsonl'],
+        output_base_path='./output',
+        sample_size=1024,
+    )
 
-    :param input_base_path: Path to directory containing JSONL files (searched recursively).
+    # Run tokenization and indexing
+    indexer()
+    ```
+
     :param tokenizer_func: Function used to tokenize text.
-    :param eos_idx: EOS token index, known by the used Tokenizer
+    :param eos_idx: EOS token index, known by the used Tokenizer.
+    :param input_base_path: Path to directory containing JSONL files (searched recursively).
+        Used as fallback for output if `output_base_path` is not provided.
+    :param input_file_paths: List of file paths to process. If provided, these are used
+        instead of scanning `input_base_path` for JSONL files.
+    :param output_base_path: Base path for output (index and tokenized samples).
+        If not provided, `input_base_path` is used.
+    :param index_store: Index store to use. If provided, this is used instead of
+        creating a new FSBasedIndexStore.
     :param process_text_line_func: Function used to process text lines.
         By default, this converts input JSON lines to dicts and returns the "text" field.
         See function get_text_from_jsonl().
-    :param sample_generator_kwargs: Other kwargs passed to TokenizedSampleGenerator.
-    :param name: Optional: name of the indexer to create, used for logging purposes
+    :param logger: Logger to use. If not provided, uses module logger.
+    :param name: Name of the indexer, used for logging purposes.
+    :param sample_generator_kwargs: Other kwargs passed to TokenizedSampleGenerator
+        (e.g., sample_size, token_dtype, base_output_path).
 
-    :return: FileTextLinesIndexer instance that can be used to tokenize and index text from jsonl objects, from
-             JSONL files at input_base_path (recursively)
+    :raises ValueError: If both `input_base_path` and `input_file_paths` are None.
+    :raises ValueError: If `index_store` is None and both `output_base_path` and
+        `input_base_path` are None.
+
+    :return: FileTextLinesIndexer instance that can be called to run tokenization
+        and indexing.
     """
+    if logger is None:
+        logger = module_logger
+
+    # Validate input source
+    if input_base_path is None and input_file_paths is None:
+        raise ValueError(
+            "Either input_base_path or input_file_paths must be provided"
+        )
+
+    # Determine output base path
+    effective_output_base_path = output_base_path or input_base_path
+
+    # Validate output destination
+    if index_store is None and effective_output_base_path is None:
+        raise ValueError(
+            "Either index_store, output_base_path, or input_base_path must be provided "
+            "to determine where to store the index"
+        )
+
+    logger.info(f"Output base path: {effective_output_base_path}")
+
     if process_text_line_func is None:
-        process_text_line_func=get_text_from_jsonl
+        process_text_line_func = get_text_from_jsonl
 
-    index_store = FSBasedIndexStore(
-        base_path=input_base_path,
-    )
-    input_file_paths = find_files_recursive(
-        input_base_path,
-        extension_patterns=['*.jsonl', '*.JSONL']
-    )
+    if index_store is None:
+        index_store = FSBasedIndexStore(
+            base_path=effective_output_base_path,
+        )
 
-    # Assuming numbered files
-    input_file_paths = natural_sort(input_file_paths)
+    if input_file_paths is None:
+        logger.info(f"Scanning for JSONL files in: {input_base_path}")
+        input_file_paths = find_files_recursive(
+            input_base_path,
+            extension_patterns=['*.jsonl', '*.JSONL']
+        )
+        # Assuming numbered files
+        input_file_paths = natural_sort(input_file_paths)
+        logger.info(f"Found {len(input_file_paths)} JSONL file(s)")
+
+    # Set default base_output_path for tokenized samples if not provided in kwargs
+    if 'base_output_path' not in sample_generator_kwargs:
+        default_base_output_path = os.path.join(
+            effective_output_base_path, "tokenized-samples"
+        )
+        logger.info(f"Tokenized samples output path: {default_base_output_path}")
+        sample_generator_kwargs['base_output_path'] = default_base_output_path
 
     sample_generator = TokenizedSampleGenerator(
         process_text_line_func=process_text_line_func,

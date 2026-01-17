@@ -1,6 +1,8 @@
 import abc
 from typing import Optional, Union, Dict, List, Protocol, Any
 
+import numpy as np
+
 from basics.base import Base
 
 from data_forager.sample_index import SampleIndex, SampleLocation
@@ -128,3 +130,52 @@ class Dataset(Base, metaclass=abc.ABCMeta):
 
     def __del__(self):
         self._close_files()
+
+
+class SubsampledDataset:
+    """
+    Wrapper that provides a subsampled view of a dataset.
+
+    Randomly selects a subset of indices from the wrapped dataset, allowing
+    for faster iteration through epochs when testing or debugging.
+
+    :param dataset: The dataset to wrap (must support __len__ and __getitem__).
+    :param subsample_factor: Fraction of the dataset to use (must be between 0 and 1).
+    :param seed: Random seed for reproducibility. If None, sampling is random.
+    :param random_order: If False (default), indices are sorted for better disk
+        read locality. If True, indices are kept in random order, which can be
+        used as a randomizer.
+    """
+
+    def __init__(
+        self,
+        dataset,
+        subsample_factor: float,
+        seed: int | None = None,
+        random_order: bool = False,
+    ):
+        if not 0 < subsample_factor <= 1:
+            raise ValueError(
+                f"subsample_factor must be between 0 (exclusive) and 1 (inclusive), "
+                f"got {subsample_factor}"
+            )
+
+        self._dataset = dataset
+        self._subsample_factor = subsample_factor
+
+        n_full = len(dataset)
+        n_sub = int(subsample_factor * n_full)
+
+        # Sample indices without replacement
+        rng = np.random.default_rng(seed)
+        self._indices = rng.choice(n_full, size=n_sub, replace=False)
+
+        # Sort for cache locality unless random order is requested
+        if not random_order:
+            self._indices.sort()
+
+    def __len__(self) -> int:
+        return len(self._indices)
+
+    def __getitem__(self, idx: int):
+        return self._dataset[self._indices[idx]]

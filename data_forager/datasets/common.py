@@ -168,11 +168,14 @@ class SubsampledDataset:
 
         # Sample indices without replacement
         rng = np.random.default_rng(seed)
-        self._indices = rng.choice(n_full, size=n_sub, replace=False)
+        indices = rng.choice(n_full, size=n_sub, replace=False)
 
         # Sort for cache locality unless random order is requested
         if not random_order:
-            self._indices.sort()
+            indices.sort()
+
+        # Convert to Python list of ints for underlying dataset compatibility
+        self._indices: list[int] = indices.tolist()
 
     def __len__(self) -> int:
         return len(self._indices)

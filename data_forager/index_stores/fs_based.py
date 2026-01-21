@@ -16,13 +16,15 @@ class IndexStore(Base, IndexStoreInterface):
         """
 
         :param base_path: Base path where the index files are stored.
+            File paths in file_location.txt are stored relative to this path.
 
         :param name: Name of instance, if not provided, the classname will be used
         """
 
         super().__init__(pybase_logger_name=name)
 
-        self._index_data_path = os.path.join(base_path, index_data_folder)
+        self._base_path = os.path.abspath(base_path)
+        self._index_data_path = os.path.join(self._base_path, index_data_folder)
         self._file_locations = []
 
         # File handles for buffered writing
@@ -45,14 +47,17 @@ class IndexStore(Base, IndexStoreInterface):
 
     def add_sample(self, file_location: str, byte_offset: int, num_bytes: int):
         """
-        :param file_location:
+        :param file_location: Absolute or relative path to the sample file.
+            Will be stored as a path relative to base_path.
         :param byte_offset:
         :param num_bytes:
         :return:
         """
         if file_location not in self._file_locations:
             self._file_locations.append(file_location)
-            self._file_location_handle.write(file_location + '\n')
+            # Store as relative path for portability
+            relative_path = os.path.relpath(file_location, self._base_path)
+            self._file_location_handle.write(relative_path + '\n')
 
         file_index = self._file_locations.index(file_location)
 
@@ -74,7 +79,12 @@ class IndexStore(Base, IndexStoreInterface):
 
     def load(self) -> SampleIndex:
         with open(os.path.join(self._index_data_path, "file_location.txt"), "r") as f:
-            file_locations = [loc[:-1] if loc[-1]=='\n' else loc for loc in f.readlines()]
+            relative_locations = [loc[:-1] if loc[-1]=='\n' else loc for loc in f.readlines()]
+
+        # Resolve relative paths against base_path
+        file_locations = [
+            os.path.join(self._base_path, loc) for loc in relative_locations
+        ]
 
         with open(os.path.join(self._index_data_path, "sample_locations.bin"), "rb") as f:
             data = f.read()

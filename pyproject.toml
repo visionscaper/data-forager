@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "data-forager"
-version = "0.1.5"
+version = "0.1.6"
 description = "Enabling random access to large datasets on disk for PyTorch training and other use cases"
 readme = "README.md"
 license = "MIT"
